@@ -150,7 +150,8 @@ main img {
 }
 
 .step button,
-main button {
+main button,
+a.button-link {
   margin-top: 8px;
   margin-right: 8px;
   background: #006a4e;
@@ -158,4 +159,79 @@ main button {
   border: 0;
   border-radius: 6px;
   padding: 8px 14px;
+}
+
+a.button-link {
+  display: inline-block;
+  text-decoration: none;
+}
+
+a.text-link {
+  color: #006a4e;
+  text-decoration: underline;
+}
+
+/* Signed-in bar. The profile sits on the right and opens Log out. */
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.topbar .profile {
+  margin: 0;
+  background: #fff;
+  color: #006a4e;
+  border: 1px solid #006a4e;
+}
+
+.profile-menu {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  background: #fff;
+  border: 1px solid #006a4e;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+/* A floating notice. Red is a problem. Green is success. It sits above the page. */
+.notice,
+.notices {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 20;
+  width: min(24rem, calc(100% - 32px));
+  transform: translateX(-50%);
+}
+
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notice {
+  margin: 0;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(20, 38, 28, 0.18);
+}
+
+.notices .notice {
+  position: static;
+  width: auto;
+  transform: none;
+}
+
+.notice.error {
+  border: 1px solid #f42a41;
+  color: #f42a41;
+}
+
+.notice.ok {
+  border: 1px solid #006a4e;
+  color: #006a4e;
 }

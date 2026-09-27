@@ -1,48 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from "react";
-
-type Template = {
-  id: string;
-  title: string;
-  occasionType: string;
-  layoutConfig?: { photoSlots?: number; colors?: string[] };
-};
-
-type PosterRow = {
-  id: string;
-  status: string;
-  generatedImageUrl?: string;
-  jpgUrl?: string;
-  pdfUrl?: string;
-  regenerateCount?: number;
-  clean?: boolean;
-  formData?: Record<string, string>;
-};
-
-type ReviewRow = {
-  id: string;
-  status: string;
-  blocked?: boolean;
-  flagged?: boolean;
-  clean?: boolean;
-  formData?: { headline?: string; name?: string };
-};
-
-type AdminTemplate = {
-  id: string;
-  title: string;
-  occasionType: string;
-  isActive: boolean;
-};
-
-// Newest Gemini attempt. tokensUsed stays null when Gemini did not report a count.
-type CostLog = {
-  geminiPromptUsed: string;
-  tokensUsed: number | null;
-  latencyMs: number;
-  success: boolean;
-};
+import { useRouter } from "next/navigation";
+// Template, PosterRow, ReviewRow, AdminTemplate, and CostLog now live in posterTypes.ts.
+import type { AdminTemplate, CostLog, PosterRow, ReviewRow, Template } from "./posterTypes";
+import AdminPanel from "./AdminPanel";
+import { accountFrom } from "./accountFrom";
 
 // Text fields stored on the poster. Photo fields follow the template slot count.
 const fields = ["name", "designation", "party", "district", "headline"] as const;
@@ -65,14 +28,7 @@ function photoLabel(slots?: number) {
   return count === 1 ? "1 photo" : count + " photos";
 }
 
-// Email wins when both boxes are filled. Phone is used only when email is blank.
-function accountFrom(data: FormData) {
-  const email = String(data.get("email") ?? "").trim();
-  const phone = String(data.get("phone") ?? "").trim();
-  const password = data.get("password");
-  if (email) return { email, password };
-  return { phone, password };
-}
+// accountFrom now lives in accountFrom.ts. Email still wins over phone.
 
 // Replaced the create-next-app starter page. That demo only linked to the Next.js docs.
 // Lists templates, then saves a text draft for the one you click.
@@ -100,6 +56,11 @@ export default function Home() {
   const [occasion, setOccasion] = useState("");
   // The first persist run must not wipe a token saved by an earlier visit.
   const skipWipe = useRef(true);
+  // False until this page has read the stored token. Then a missing token goes to /login.
+  const [ready, setReady] = useState(false);
+  // True while the profile menu on the top right is open.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     fetch(api + "/api/templates")
@@ -107,10 +68,18 @@ export default function Home() {
       .then((rows: Template[]) => setTemplates(rows))
       .catch(() => setError("Could not load templates"));
     const saved = sessionStorage.getItem("token") ?? "";
-    if (!saved) return;
-    setToken(saved);
-    void restore(saved);
+    if (saved) {
+      setToken(saved);
+      void restore(saved);
+    }
+    setReady(true);
   }, []);
+
+  // A signed-out visit, including after Log out, opens the login page.
+  useEffect(() => {
+    if (!ready || token) return;
+    router.replace("/login");
+  }, [ready, token, router]);
 
   // Writes the token after login or register. Log out removes it.
   useEffect(() => {
@@ -363,41 +332,7 @@ export default function Home() {
     setUsage(usageBody);
   }
 
-  // Creates a normal account. The request never sends an admin role.
-  async function register(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setSaved("");
-    const data = new FormData(event.currentTarget);
-    const res = await fetch(api + "/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: data.get("name"),
-        ...accountFrom(data),
-      }),
-    });
-    const body = await res.json();
-    if (!res.ok) {
-      setError(body.error ?? "register failed");
-      return;
-    }
-    setSaved("account created");
-    setToken(body.token);
-    setRole("");
-    setReview([]);
-    setAdminTemplates([]);
-    setUsage({ posters: 0, blocked: 0, flagged: 0, templates: 0, lastLog: null });
-    const listRes = await fetch(api + "/api/posters", {
-      headers: { Authorization: "Bearer " + body.token },
-    });
-    const rows = await listRes.json();
-    if (!listRes.ok) {
-      setError(rows.error ?? "could not load posters");
-      return;
-    }
-    setPosters(rows);
-  }
+  // register and logIn moved to /register and /login. The forms are not removed from the project.
 
   // Drops the sign-in on this page. The account stays in the database.
   function logOut() {
@@ -613,44 +548,37 @@ export default function Home() {
   const occasions = [...new Set(templates.map((row) => row.occasionType))];
   const shown = occasion ? templates.filter((row) => row.occasionType === occasion) : templates;
 
+  // Logged-out visitors are sent to /login. The poster page stays for a stored token.
+  if (!ready || !token) return null;
+
   return (
     <main>
-      <header className="banner">
-        <span className="disc" aria-hidden="true"></span>
-        <div>
-          <h1>Rise Together</h1>
-          <p>Make a political poster, then download it.</p>
-        </div>
-      </header>
-      {error ? <p>{error}</p> : null}
-      {saved ? <p>{saved}</p> : null}
-      <section className="step">
-        <h2>1. Create an account</h2>
-        <p>Email or phone is enough.</p>
-        <form onSubmit={register}>
-          <label>
-            Name
-            <input name="name" placeholder="name" required />
-          </label>
-          <label>
-            Email
-            <input name="email" type="email" placeholder="email" />
-          </label>
-          <label>
-            Phone
-            <input name="phone" placeholder="phone" />
-          </label>
-          <label>
-            Password
-            <input name="password" type="password" placeholder="password" required />
-          </label>
-          <button type="submit">Register</button>
-        </form>
-        {token ? (
-          <button type="button" onClick={logOut}>
-            Log out
-          </button>
+      <header className="topbar">
+        <button type="button" className="profile" onClick={() => setMenuOpen((open) => !open)}>
+          {role === "admin" ? "admin" : "user"}
+        </button>
+        {menuOpen ? (
+          <div className="profile-menu">
+            <button type="button" onClick={logOut}>Log out</button>
+          </div>
         ) : null}
+      </header>
+      {error || saved ? (
+        <div className="notices">
+          {error ? <p className="notice error" role="status">{error}</p> : null}
+          {saved ? <p className="notice ok" role="status">{saved}</p> : null}
+        </div>
+      ) : null}
+      <section className="step">
+        <h2>{token ? "You are signed in" : "You are not signed in"}</h2>
+        {/* Register and Log in now live on /register and /login. */}
+        {token ? null : (
+          <>
+            <a className="button-link" href="/register">Register</a>
+            <a className="button-link" href="/login">Log in</a>
+          </>
+        )}
+        {/* Log out moved into the profile menu on the top right. */}
         {token && posters.length === 0 ? <p>No posters yet</p> : null}
       </section>
       <section className="step">
@@ -737,7 +665,7 @@ export default function Home() {
           <button type="button" onClick={makeDrafts}>Save names only</button>
           <button type="submit">Make poster</button>
           <button type="button" onClick={loadPosters}>My posters</button>
-          {saved ? <p>{saved}</p> : null}
+          {/* The same saved line is the notice above. It is not repeated here. */}
           {imageUrl ? <img src={imageUrl} alt="poster" width={300} /> : null}
         </form>
         {/* The list is outside the draft form so these fields are not saved as a new poster. */}
@@ -787,56 +715,26 @@ export default function Home() {
             </li>
           ))}
         </ul>
-        {role === "admin" ? (
-          <section className="step">
-            <h2>Admin</h2>
-            <p>
-              {usage.posters} posters, {usage.blocked} blocked, {usage.flagged} flagged, {usage.templates} templates
-              {usage.lastLog
-                ? ` ${usage.lastLog.geminiPromptUsed} ${usage.lastLog.success ? "ok" : "miss"} ${usage.lastLog.latencyMs}ms${typeof usage.lastLog.tokensUsed === "number" ? " " + usage.lastLog.tokensUsed + " tokens" : ""}`
-                : ""}
-            </p>
-            <form onSubmit={createTemplate}>
-              <input name="title" placeholder="template title" required />
-              <input name="occasion" placeholder="occasion" required />
-              <button type="submit">Create template</button>
-            </form>
-            <ul>
-              {adminTemplates.map((row) => (
-                <li key={row.id}>
-                  {row.title} — {row.occasionType}{" "}
-                  <button type="button" onClick={() => setTemplateActive(row.id, !row.isActive)}>
-                    {row.isActive ? "Hide" : "Show"}
-                  </button>{" "}
-                  <button type="button" onClick={() => deleteTemplate(row.id)}>
-                    Delete
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <ul>
-              {review.map((row) => (
-                <li key={row.id}>
-                  {row.status} {row.formData?.name ?? ""} {row.formData?.headline ?? ""}{" "}
-                  <button type="button" onClick={() => setBlocked(row.id, !row.blocked)}>
-                    {row.blocked ? "Unblock" : "Block"}
-                  </button>{" "}
-                  <button type="button" onClick={() => setFlagged(row.id, !row.flagged)}>
-                    {row.flagged ? "Unflag" : "Flag"}
-                  </button>{" "}
-                  <button type="button" onClick={() => setClean(row.id, !row.clean)}>
-                    {row.clean ? "Watermark" : "Clean"}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+        {/* Admin now sits under the steps, so a design does not have to be picked first. */}
         </>
       ) : (
         <p>Choose a design first.</p>
       )}
       </section>
+      {/* The admin markup lives in AdminPanel.tsx. It shows as soon as this account is an admin. */}
+      {role === "admin" ? (
+        <AdminPanel
+          usage={usage}
+          adminTemplates={adminTemplates}
+          review={review}
+          createTemplate={createTemplate}
+          setTemplateActive={setTemplateActive}
+          deleteTemplate={deleteTemplate}
+          setBlocked={setBlocked}
+          setFlagged={setFlagged}
+          setClean={setClean}
+        />
+      ) : null}
     </main>
   );
 }
