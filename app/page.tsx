@@ -46,6 +46,14 @@ type CostLog = {
 
 // Text fields stored on the poster. Photo fields follow the template slot count.
 const fields = ["name", "designation", "party", "district", "headline"] as const;
+// Words shown above those fields. The input names stay the same.
+const fieldLabels: Record<(typeof fields)[number], string> = {
+  name: "Name",
+  designation: "Designation",
+  party: "Party",
+  district: "District",
+  headline: "Headline",
+};
 // API address. Localhost when NEXT_PUBLIC_API_URL is unset.
 const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 // A template color is shown only when it is a # and six hex digits.
@@ -142,11 +150,9 @@ export default function Home() {
     await loadAdmin(authToken);
   }
 
-  // Logs in and saves one draft per name. The images are not built yet.
-  async function saveNameDrafts(form: HTMLFormElement, names: string[]) {
-    setError("");
-    setSaved("");
-    const data = new FormData(form);
+  // Uses the sign-in already on this page. Otherwise reads email or phone from the form.
+  async function sessionToken(data: FormData) {
+    if (token) return token;
     const loginRes = await fetch(api + "/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -155,13 +161,24 @@ export default function Home() {
     const login = await loginRes.json();
     if (!loginRes.ok) {
       setError(login.error ?? "login failed");
-      return;
+      return "";
     }
+    setToken(login.token);
+    return login.token as string;
+  }
+
+  // Logs in and saves one draft per name. The images are not built yet.
+  async function saveNameDrafts(form: HTMLFormElement, names: string[]) {
+    setError("");
+    setSaved("");
+    const data = new FormData(form);
+    const auth = await sessionToken(data);
+    if (!auth) return;
     const bulkRes = await fetch(api + "/api/posters/bulk", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + login.token,
+        Authorization: "Bearer " + auth,
       },
       body: JSON.stringify({ templateId: picked?.id, names }),
     });
@@ -170,9 +187,9 @@ export default function Home() {
       setError(created.error ?? "drafts failed");
       return;
     }
-    setToken(login.token);
+    setToken(auth);
     const listRes = await fetch(api + "/api/posters", {
-      headers: { Authorization: "Bearer " + login.token },
+      headers: { Authorization: "Bearer " + auth },
     });
     const rows = await listRes.json();
     if (!listRes.ok) {
@@ -215,16 +232,8 @@ export default function Home() {
     setSaved("");
     setImageUrl("");
     const data = new FormData(event.currentTarget);
-    const loginRes = await fetch(api + "/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(accountFrom(data)),
-    });
-    const login = await loginRes.json();
-    if (!loginRes.ok) {
-      setError(login.error ?? "login failed");
-      return;
-    }
+    const auth = await sessionToken(data);
+    if (!auth) return;
 
     // Empty file inputs are skipped, so a text-only draft still saves.
     const uploadedPhotoUrls: string[] = [];
@@ -234,7 +243,7 @@ export default function Home() {
       body.append("photo", file);
       const uploadRes = await fetch(api + "/api/upload", {
         method: "POST",
-        headers: { Authorization: "Bearer " + login.token },
+        headers: { Authorization: "Bearer " + auth },
         body,
       });
       const uploaded = await uploadRes.json();
@@ -252,7 +261,7 @@ export default function Home() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + login.token,
+        Authorization: "Bearer " + auth,
       },
       body: JSON.stringify({ templateId: picked?.id, formData, uploadedPhotoUrls }),
     });
@@ -267,7 +276,7 @@ export default function Home() {
     let polling = true;
     const poll = window.setInterval(() => {
       void fetch(api + "/api/posters/" + poster.id, {
-        headers: { Authorization: "Bearer " + login.token },
+        headers: { Authorization: "Bearer " + auth },
       })
         .then((res) => res.json())
         .then((body: { status?: string }) => {
@@ -279,7 +288,7 @@ export default function Home() {
     try {
       renderRes = await fetch(api + "/api/posters/" + poster.id + "/render", {
         method: "POST",
-        headers: { Authorization: "Bearer " + login.token },
+        headers: { Authorization: "Bearer " + auth },
       });
     } finally {
       polling = false;
@@ -300,28 +309,21 @@ export default function Home() {
     const form = event.currentTarget.form;
     if (!form) return;
     const data = new FormData(form);
-    const loginRes = await fetch(api + "/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(accountFrom(data)),
-    });
-    const login = await loginRes.json();
-    if (!loginRes.ok) {
-      setError(login.error ?? "login failed");
-      return;
-    }
+    // The form login lives in sessionToken, so a stored sign-in can skip it.
+    const auth = await sessionToken(data);
+    if (!auth) return;
     const listRes = await fetch(api + "/api/posters", {
-      headers: { Authorization: "Bearer " + login.token },
+      headers: { Authorization: "Bearer " + auth },
     });
     const rows = await listRes.json();
     if (!listRes.ok) {
       setError(rows.error ?? "could not load posters");
       return;
     }
-    setToken(login.token);
+    setToken(auth);
     setPosters(rows);
     const meRes = await fetch(api + "/api/auth/me", {
-      headers: { Authorization: "Bearer " + login.token },
+      headers: { Authorization: "Bearer " + auth },
     });
     const me = await meRes.json();
     if (!meRes.ok || me.role !== "admin") {
@@ -332,7 +334,7 @@ export default function Home() {
       return;
     }
     setRole("admin");
-    await loadAdmin(login.token);
+    await loadAdmin(auth);
   }
 
   // Loads the review list and every template, including hidden ones.
@@ -613,22 +615,46 @@ export default function Home() {
 
   return (
     <main>
-      <h1>Templates</h1>
+      <header className="banner">
+        <span className="disc" aria-hidden="true"></span>
+        <div>
+          <h1>Rise Together</h1>
+          <p>Make a political poster, then download it.</p>
+        </div>
+      </header>
       {error ? <p>{error}</p> : null}
       {saved ? <p>{saved}</p> : null}
-      <form onSubmit={register}>
-        <input name="name" placeholder="name" required />
-        <input name="email" type="email" placeholder="email" />
-        <input name="phone" placeholder="phone" />
-        <input name="password" type="password" placeholder="password" required />
-        <button type="submit">Register</button>
-      </form>
-      {token ? (
-        <button type="button" onClick={logOut}>
-          Log out
-        </button>
-      ) : null}
-      {token && posters.length === 0 ? <p>No posters yet</p> : null}
+      <section className="step">
+        <h2>1. Create an account</h2>
+        <p>Email or phone is enough.</p>
+        <form onSubmit={register}>
+          <label>
+            Name
+            <input name="name" placeholder="name" required />
+          </label>
+          <label>
+            Email
+            <input name="email" type="email" placeholder="email" />
+          </label>
+          <label>
+            Phone
+            <input name="phone" placeholder="phone" />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" placeholder="password" required />
+          </label>
+          <button type="submit">Register</button>
+        </form>
+        {token ? (
+          <button type="button" onClick={logOut}>
+            Log out
+          </button>
+        ) : null}
+        {token && posters.length === 0 ? <p>No posters yet</p> : null}
+      </section>
+      <section className="step">
+        <h2>2. Choose a design</h2>
       <div className="choices">
         <button type="button" onClick={() => setOccasion("")}>
           All
@@ -657,28 +683,59 @@ export default function Home() {
           </li>
         ))}
       </ul>
+      </section>
+      <section className="step">
+        <h2>3. Write the poster</h2>
       {picked ? (
         <>
         <form className="poster-form" onSubmit={onSubmit}>
           <p>{picked.title}</p>
-          <input name="email" type="email" placeholder="email" />
-        <input name="phone" placeholder="phone" />
-          <input name="password" type="password" placeholder="password" required />
+          {token ? null : (
+            <>
+              <label>
+                Email
+                <input name="email" type="email" placeholder="email" />
+              </label>
+              <label>
+                Phone
+                <input name="phone" placeholder="phone" />
+              </label>
+              <label>
+                Password
+                <input name="password" type="password" placeholder="password" required />
+              </label>
+            </>
+          )}
           {fields.map((key) => (
-            <input key={key} name={key} placeholder={key} />
+            <label key={key}>
+              {fieldLabels[key]}
+              <input name={key} placeholder={key} />
+            </label>
           ))}
-          <select name="font" defaultValue="nirmala">
-            <option value="nirmala">Nirmala</option>
-            <option value="noto">Noto Sans Bengali</option>
-          </select>
-          {/* One field per leader photo. A missing slot count still shows one field. */}
-          {Array.from({ length: Math.min(3, Math.max(1, picked.layoutConfig?.photoSlots ?? 1)) }, (_, index) => (
-            <input key={index} name="photo" type="file" accept="image/*" />
-          ))}
-          <textarea name="names" placeholder="one name per line" rows={4} />
-          <input name="csv" type="file" accept=".csv,text/csv" onChange={readCsv} />
-          <button type="button" onClick={makeDrafts}>Make drafts</button>
-          <button type="submit">Save draft</button>
+          <label>
+            Font
+            <select name="font" defaultValue="nirmala">
+              <option value="nirmala">Nirmala</option>
+              <option value="noto">Noto Sans Bengali</option>
+            </select>
+          </label>
+          <label>
+            Photos
+            {/* One field per leader photo. A missing slot count still shows one field. */}
+            {Array.from({ length: Math.min(3, Math.max(1, picked.layoutConfig?.photoSlots ?? 1)) }, (_, index) => (
+              <input key={index} name="photo" type="file" accept="image/*" />
+            ))}
+          </label>
+          <label>
+            Names
+            <textarea name="names" placeholder="one name per line" rows={4} />
+          </label>
+          <label>
+            CSV
+            <input name="csv" type="file" accept=".csv,text/csv" onChange={readCsv} />
+          </label>
+          <button type="button" onClick={makeDrafts}>Save names only</button>
+          <button type="submit">Make poster</button>
           <button type="button" onClick={loadPosters}>My posters</button>
           {saved ? <p>{saved}</p> : null}
           {imageUrl ? <img src={imageUrl} alt="poster" width={300} /> : null}
@@ -688,9 +745,9 @@ export default function Home() {
           {posters.map((row) => (
             <li key={row.id}>
               {busyId === row.id ? "rendering" : row.status}{" "}
-              {row.clean ? "" : "sample "}
+              {row.clean ? "" : "sample copy "}
               {/* Three rebuilds are allowed. The first saved image does not count. */}
-              {Math.max(0, 3 - (row.regenerateCount ?? 0))} left{" "}
+              {Math.max(0, 3 - (row.regenerateCount ?? 0))} rebuilds left{" "}
               <button type="button" onClick={() => regenerate(row.id)}>
                 Regenerate
               </button>{" "}
@@ -719,12 +776,10 @@ export default function Home() {
                 </>
               ) : null}
               {fields.map((key) => (
-                <input
-                  key={key}
-                  name={key}
-                  placeholder={key}
-                  defaultValue={String(row.formData?.[key] ?? "")}
-                />
+                <label key={key}>
+                  {fieldLabels[key]}
+                  <input name={key} placeholder={key} defaultValue={String(row.formData?.[key] ?? "")} />
+                </label>
               ))}
               <button type="button" onClick={(event) => saveText(row.id, event)}>
                 Save text
@@ -733,7 +788,8 @@ export default function Home() {
           ))}
         </ul>
         {role === "admin" ? (
-          <section>
+          <section className="step">
+            <h2>Admin</h2>
             <p>
               {usage.posters} posters, {usage.blocked} blocked, {usage.flagged} flagged, {usage.templates} templates
               {usage.lastLog
@@ -777,7 +833,10 @@ export default function Home() {
           </section>
         ) : null}
         </>
-      ) : null}
+      ) : (
+        <p>Choose a design first.</p>
+      )}
+      </section>
     </main>
   );
 }

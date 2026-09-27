@@ -48,6 +48,40 @@ a {
   }
 }
 
+/* Kept light on purpose. A dark browser theme must not turn this page black. */
+html {
+  color-scheme: light;
+}
+
+body {
+  background: #f4f7f5;
+  color: #14261c;
+}
+
+/* Green band and red disc, close to the Bangladesh flag. The title stays white. */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #006a4e;
+  color: #fff;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.banner h1,
+.banner p {
+  color: #fff;
+}
+
+.disc {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f42a41;
+  flex: none;
+}
+
 /* Page padding and wrapping so a phone width does not scroll sideways. */
 main {
   padding: 16px;
@@ -91,4 +125,37 @@ main img {
 
 .poster-list li {
   margin-top: 12px;
+}
+
+/* Each numbered step is a white card with a green border. */
+.step {
+  margin-top: 24px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #006a4e;
+  border-radius: 8px;
+}
+
+.step h2 {
+  margin-bottom: 8px;
+  color: #006a4e;
+}
+
+.step label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.step button,
+main button {
+  margin-top: 8px;
+  margin-right: 8px;
+  background: #006a4e;
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 14px;
 }
