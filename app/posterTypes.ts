@@ -24,6 +24,7 @@ export type ReviewRow = {
   blocked?: boolean;
   flagged?: boolean;
   clean?: boolean;
+  generatedImageUrl?: string;
   formData?: { headline?: string; name?: string };
 };
 
@@ -32,6 +33,7 @@ export type AdminTemplate = {
   title: string;
   occasionType: string;
   isActive: boolean;
+  layoutConfig?: { photoSlots?: number; colors?: string[] };
 };
 
 // Newest Gemini attempt. tokensUsed stays null when Gemini did not report a count.

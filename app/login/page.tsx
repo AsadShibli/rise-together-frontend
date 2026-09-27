@@ -51,9 +51,9 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
+    <main className="auth">
       <header className="banner">
-        <span className="disc" aria-hidden="true"></span>
+        {/* The red disc was the flag mark. It is not shown. */}
         <div>
           <h1>Rise Together</h1>
         </div>

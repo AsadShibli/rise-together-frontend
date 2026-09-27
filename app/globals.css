@@ -54,32 +54,32 @@ html {
 }
 
 body {
-  background: #f4f7f5;
+  background: #fff;
   color: #14261c;
 }
 
-/* Green band and red disc, close to the Bangladesh flag. The title stays white. */
+/* White header with a green line. The red disc is not used. */
 .banner {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #006a4e;
-  color: #fff;
-  padding: 16px;
-  border-radius: 8px;
+  background: #fff;
+  color: #006a4e;
+  padding: 8px 0 16px;
+  border-bottom: 1px solid #006a4e;
+  border-radius: 0;
 }
 
 .banner h1,
 .banner p {
-  color: #fff;
+  color: #006a4e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
 }
 
+/* .disc was the red flag mark. Left unused so the rule is not lost. */
 .disc {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #f42a41;
-  flex: none;
+  display: none;
 }
 
 /* Page padding and wrapping so a phone width does not scroll sideways. */
@@ -88,10 +88,112 @@ main {
   max-width: 100%;
 }
 
+/* Login and register only. The poster page keeps a full-width step. */
+main.auth {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main.auth .banner {
+  width: 100%;
+}
+
+main.auth .step {
+  width: min(420px, 100%);
+  margin-inline: auto;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+main.auth .step label,
+main.auth .step input {
+  width: 100%;
+  max-width: 100%;
+}
+
 .choices {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.design-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  max-width: 24rem;
+  margin-top: 8px;
+}
+
+.design-list .design-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  background: #fff;
+  color: #14261c;
+  border: 1px solid #006a4e;
+  text-align: left;
+}
+
+.design-list .design-pick.on {
+  border-width: 3px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.tabs button {
+  margin: 0;
+  background: #fff;
+  color: #006a4e;
+  border: 1px solid #006a4e;
+}
+
+.tabs button.on {
+  background: #006a4e;
+  color: #fff;
+}
+
+/* These tabs sit inside the admin card, so they must beat the green main button. */
+.step .tabs button {
+  margin: 0;
+  background: #fff;
+  color: #006a4e;
+  border: 1px solid #006a4e;
+}
+
+.step .tabs button.on {
+  background: #006a4e;
+  color: #fff;
+}
+
+.swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  border: 1px solid #006a4e;
+  vertical-align: middle;
+}
+
+.design-colors {
+  margin-top: 8px;
+}
+
+.first-steps {
+  margin: 16px 0;
+  padding-left: 20px;
+  color: #006a4e;
+}
+
+.first-steps li {
+  margin-top: 4px;
 }
 
 main button,
@@ -113,6 +215,8 @@ main img {
   align-items: flex-start;
   gap: 8px;
   padding: 0 0 16px;
+  flex: 1 1 280px;
+  max-width: 28rem;
 }
 
 .poster-form input,
@@ -123,22 +227,437 @@ main img {
   max-width: 24rem;
 }
 
+/* Form on the left, sample poster on the right. A narrow screen stacks them. */
+.write-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.poster-guide {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The sample stays inside the window. It does not grow to half the page. */
+.guide-sheet {
+  position: relative;
+  display: inline-block;
+  max-height: calc(100vh - 13rem);
+}
+
+.guide-sheet img {
+  display: block;
+  width: auto;
+  max-width: min(34vw, 380px);
+  max-height: calc(100vh - 13rem);
+  height: auto;
+}
+
+/* These notes sat on the name. The arrows on the right replaced them. */
+.chip {
+  position: absolute;
+  max-width: 70%;
+  padding: 1px 5px;
+  background: #f4f0e6;
+  color: #1f1a14;
+  border: 1px solid #cfc6b8;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.chip.photos { top: 14%; left: 6%; }
+.chip.headline { top: 34%; right: 4%; }
+.chip.mark { top: 46%; left: 22%; }
+.chip.name { bottom: 17%; left: 22%; }
+.chip.role { bottom: 11%; left: 28%; }
+.chip.place { bottom: 5%; left: 14%; }
+
+.optional-group {
+  width: 100%;
+  max-width: 24rem;
+  margin: 4px 0;
+  padding: 8px 12px 12px;
+  border: 1px solid #cfc6b8;
+}
+
+.optional-group legend {
+  padding: 0 6px;
+}
+
+.guide-sheet p {
+  margin: 0;
+  text-align: center;
+}
+
+.guide-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+/* The sample flag is not drawn. The sizes stay so the mark can come back. */
+.guide-flag {
+  position: relative;
+  width: 18px;
+  height: 12px;
+  border-radius: 1px;
+}
+
+.guide-flag span {
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.guide-cutout,
+.guide-portrait {
+  display: block;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid #f42a41;
+}
+
+.guide-cutout {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+}
+
+.guide-middle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px 0;
+}
+
+.guide-portrait {
+  width: 42px;
+  height: 58px;
+  flex: 0 0 auto;
+}
+
+.guide-headline {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.guide-mark {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%) rotate(-24deg);
+  font-size: 22px;
+  opacity: 0.45;
+}
+
+.guide-sheet footer {
+  margin-top: auto;
+  padding: 6px 4px 8px;
+  font-size: 10px;
+}
+
+.guide-name {
+  font-size: 13px;
+}
+
+.guide-credit {
+  font-size: 9px;
+}
+
+/* Each word points at its place. The list is as tall as the picture, so the percents match it. */
+.guide-labels {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 40px);
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-labels li {
+  position: absolute;
+  left: 0;
+  color: #006a4e;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.guide-labels li::before {
+  content: "";
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 0.55em;
+  width: 22px;
+  border-top: 1px solid #006a4e;
+}
+
+.guide-labels li::after {
+  content: "";
+  position: absolute;
+  right: calc(100% + 26px);
+  top: 0.28em;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-right: 6px solid #006a4e;
+}
+
+/* Measured on the sample: photo frames, the two red lines, নমুনা, then the three footer lines. */
+.guide-labels .at-photos { top: 9%; }
+.guide-labels .at-headline { top: 39%; }
+/* .at-font pointed at the headline. The font picker is gone. */
+.guide-labels .at-mark { top: 49%; }
+.guide-labels .at-name { top: 85%; }
+.guide-labels .at-role { top: 89%; }
+.guide-labels .at-place { top: 92%; }
+
 .poster-list li {
   margin-top: 12px;
 }
 
-/* Each numbered step is a white card with a green border. */
+.poster-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Name box and status list sit side by side above the directory. */
+.poster-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  margin: 12px 0 8px;
+}
+
+.poster-search {
+  display: block;
+  max-width: 22rem;
+}
+
+.poster-search input,
+.poster-search select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid #006a4e;
+  background: #fff;
+}
+
+.poster-count {
+  margin-bottom: 8px;
+}
+
+.poster-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.poster-table th,
+.poster-table td {
+  border: 1px solid #006a4e;
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.poster-table th {
+  color: #006a4e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+/* Green header bar so the columns read as a directory, not a plain grid. */
+.poster-table thead th {
+  background: #006a4e;
+  color: #fff;
+  border-color: #006a4e;
+}
+
+.poster-table td {
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  border-bottom: 1px solid #c5ddd4;
+}
+
+.poster-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.poster-table .poster-actions button,
+.poster-table a.file-button {
+  display: inline-block;
+  margin: 0;
+  background: #fff;
+  color: #006a4e;
+  border: 1px solid #006a4e;
+  text-decoration: none;
+}
+
+.poster-table a.view-picture {
+  display: inline-block;
+  margin: 0;
+  padding: 8px 14px;
+  background: #006a4e;
+  color: #fff;
+  text-decoration: none;
+}
+
+.poster-table button:disabled {
+  opacity: 0.5;
+}
+
+.word-edit input {
+  display: block;
+  width: 100%;
+  max-width: 16rem;
+  margin-top: 4px;
+}
+
+/* My posters spans the window. Make a poster keeps the inset card. */
+.step.poster-directory {
+  margin-left: -16px;
+  margin-right: -16px;
+  width: calc(100% + 32px);
+  padding: 16px 0 0;
+  border-left: 0;
+  border-right: 0;
+}
+
+.poster-directory h2,
+.poster-directory > p,
+.poster-directory .poster-tools {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.poster-directory .poster-table {
+  min-width: 52rem;
+}
+
+.poster-directory .poster-table th:first-child,
+.poster-directory .poster-table td:first-child {
+  width: 22%;
+}
+
+/* White card with a sharp green edge. */
 .step {
   margin-top: 24px;
   padding: 16px;
   background: #fff;
   border: 1px solid #006a4e;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .step h2 {
   margin-bottom: 8px;
   color: #006a4e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+.admin-block {
+  margin-top: 20px;
+  padding: 12px;
+  border: 1px solid #c5ddd4;
+  background: #f7fbf9;
+}
+
+/* Name, then a short fact, then the state words. */
+.admin-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-thumb {
+  width: 72px;
+  height: auto;
+}
+
+.admin-meta {
+  color: #3d5c4e;
+}
+
+.admin-state {
+  border: 1px solid #006a4e;
+  padding: 2px 6px;
+  color: #006a4e;
+}
+
+/* Short meanings for watermark, flag, and block. */
+.admin-help p {
+  margin-top: 6px;
+}
+
+.admin-block h3 {
+  margin-bottom: 8px;
+  color: #006a4e;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+}
+
+.admin-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-counts span {
+  border: 1px solid #006a4e;
+  background: #fff;
+  padding: 8px 10px;
+}
+
+.admin-block input {
+  display: block;
+  width: 100%;
+  max-width: 24rem;
+  margin-top: 8px;
+}
+
+/* No bullets. Each row is the name, then the buttons. */
+.admin-block ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.admin-block li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #006a4e;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-actions button {
+  margin-top: 0;
+}
+
+/* The edit fields sit on their own row under the design name. */
+.admin-edit {
+  flex-basis: 100%;
 }
 
 .step label {
@@ -157,7 +676,7 @@ a.button-link {
   background: #006a4e;
   color: #fff;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 8px 14px;
 }
 
@@ -171,28 +690,115 @@ a.text-link {
   text-decoration: underline;
 }
 
-/* Signed-in bar. The profile sits on the right and opens Log out. */
-.topbar {
-  display: flex;
-  justify-content: flex-end;
-  position: relative;
+button,
+a,
+summary,
+select,
+label {
+  cursor: pointer;
 }
 
-.topbar .profile {
+/* Signed-in bar. The title matches the login page. The role sits beside the icon. */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.top-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.role-name {
+  color: #006a4e;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.profile {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+
+.profile .profile-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
   margin: 0;
+  padding: 0;
+  border: 1px solid #006a4e;
+  border-radius: 50%;
+  background-color: #fff;
+  background-image:
+    radial-gradient(circle at 50% 34%, #006a4e 0 4px, transparent 5px),
+    radial-gradient(circle at 50% 78%, #006a4e 0 8px, transparent 9px);
+}
+
+/* Hover used to reveal Log out. The menu now opens on click and grows inward. */
+.profile .profile-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 5;
+  width: 14rem;
+  margin: 8px 0 0;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #006a4e;
+  white-space: normal;
+}
+
+.profile .profile-menu button,
+.profile .profile-menu a,
+.profile .profile-menu input {
+  display: block;
+  width: 100%;
+  margin: 8px 0 0;
+  box-sizing: border-box;
+}
+
+.profile .profile-menu button,
+.profile .profile-menu a {
   background: #fff;
   color: #006a4e;
   border: 1px solid #006a4e;
+  text-decoration: none;
+  padding: 8px 14px;
 }
 
-.profile-menu {
-  position: absolute;
-  top: 44px;
-  right: 0;
+/* Full-screen finished poster. The bar holds PNG, JPG, and PDF. */
+.poster-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: rgba(20, 38, 28, 0.92);
+}
+
+.poster-preview-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 16px;
   background: #fff;
-  border: 1px solid #006a4e;
-  border-radius: 8px;
-  padding: 8px;
+}
+
+.poster-preview-bar .preview-close {
+  margin-left: auto;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.poster-preview img {
+  max-height: calc(100vh - 72px);
+  width: auto;
+  margin: auto;
 }
 
 /* A floating notice. Red is a problem. Green is success. It sits above the page. */
@@ -216,8 +822,8 @@ a.text-link {
   margin: 0;
   padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(20, 38, 28, 0.18);
+  border-radius: 0;
+  box-shadow: 0 8px 24px rgba(31, 26, 20, 0.12);
 }
 
 .notices .notice {
@@ -227,8 +833,8 @@ a.text-link {
 }
 
 .notice.error {
-  border: 1px solid #f42a41;
-  color: #f42a41;
+  border: 1px solid #8c2f2f;
+  color: #8c2f2f;
 }
 
 .notice.ok {

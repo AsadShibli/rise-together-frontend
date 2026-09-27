@@ -11,18 +11,34 @@ import { accountFrom } from "./accountFrom";
 const fields = ["name", "designation", "party", "district", "headline"] as const;
 // Words shown above those fields. The input names stay the same.
 const fieldLabels: Record<(typeof fields)[number], string> = {
-  name: "Name",
-  designation: "Designation",
-  party: "Party",
-  district: "District",
-  headline: "Headline",
+  name: "Name (নাম)",
+  designation: "Designation (পদবি)",
+  party: "Party (দল)",
+  district: "District (জেলা)",
+  headline: "Headline (শিরোনাম)",
+};
+// Example words a typical poster would use. The stored field names stay the same.
+const fieldPlaceholders: Record<(typeof fields)[number], string> = {
+  name: "করিম উদ্দিন",
+  designation: "সদস্য",
+  party: "স্থানীয় কমিটি",
+  district: "ঢাকা",
+  headline: "মহান বিজয় দিবস",
 };
 // API address. Localhost when NEXT_PUBLIC_API_URL is unset.
 const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 // A template color is shown only when it is a # and six hex digits.
 const hexColor = /^#[0-9A-Fa-f]{6}$/;
 
-// One slot says "1 photo". Two or three say "2 photos" or "3 photos".
+// Words shown in the status column. The stored status stays the same.
+function statusWord(status: string, busy: boolean) {
+  if (busy || status === "generating") return "Building";
+  if (status === "completed") return "Ready";
+  if (status === "failed") return "Failed";
+  if (status === "draft") return "Draft";
+  return status;
+}
+// One slot says "1 photo". The design dropdown shows colors instead of this count.
 function photoLabel(slots?: number) {
   const count = Math.min(3, Math.max(1, slots ?? 1));
   return count === 1 ? "1 photo" : count + " photos";
@@ -38,6 +54,8 @@ export default function Home() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  // The finished picture. Null until Make poster or Rebuild picture succeeds.
+  const [readyPoster, setReadyPoster] = useState<{ png: string; jpg: string; pdf: string } | null>(null);
   const [posters, setPosters] = useState<PosterRow[]>([]);
   const [token, setToken] = useState("");
   // Empty until My posters finds an admin account.
@@ -52,14 +70,25 @@ export default function Home() {
     lastLog: CostLog | null;
   }>({ posters: 0, blocked: 0, flagged: 0, templates: 0, lastLog: null });
   const [busyId, setBusyId] = useState("");
-  // Empty string means every occasion. A name shows only that occasion.
-  const [occasion, setOccasion] = useState("");
+  // Occasion buttons repeated the design names, so that filter is not used.
+  // const [occasion, setOccasion] = useState("");
+  // Poster form, or the admin tools. Only an admin sees the Admin tab.
+  const [tab, setTab] = useState("poster");
+  // Click opens the profile menu. Hover used to show Log out only.
+  const [menuOpen, setMenuOpen] = useState(false);
+  // profileOpen used to show the password form in this menu. Profile is its own page now.
+  // const [profileOpen, setProfileOpen] = useState(false);
+  // Which poster row is showing the word fields.
+  const [editingId, setEditingId] = useState("");
+  // Text in the My posters name box. Blank keeps every row.
+  const [nameQuery, setNameQuery] = useState("");
+  // Status list on My posters. Blank means every status.
+  const [statusQuery, setStatusQuery] = useState("");
   // The first persist run must not wipe a token saved by an earlier visit.
   const skipWipe = useRef(true);
   // False until this page has read the stored token. Then a missing token goes to /login.
   const [ready, setReady] = useState(false);
-  // True while the profile menu on the top right is open.
-  const [menuOpen, setMenuOpen] = useState(false);
+  // The click-open menu was replaced. Log out now appears when the profile icon is hovered.
   const router = useRouter();
 
   useEffect(() => {
@@ -166,7 +195,12 @@ export default function Home() {
       return;
     }
     setPosters(rows);
-    setSaved(created.length + " drafts");
+    // The notice lists each stored name, so two lines do not look like one repeated name.
+    const stored = Array.isArray(created)
+      ? created.map((row: { formData?: { name?: string } }) => row.formData?.name || "").filter(Boolean)
+      : [];
+    const shown = stored.length ? stored : names;
+    setSaved(shown.length + " drafts: " + shown.join(", "));
   }
 
   // One name per line in the text box.
@@ -225,7 +259,8 @@ export default function Home() {
 
     const formData: Record<string, string> = {};
     for (const key of fields) formData[key] = String(data.get(key) ?? "");
-    formData.font = String(data.get("font") ?? "");
+    // The font picker was removed. The poster keeps Noto Sans Bengali.
+    // formData.font = String(data.get("font") ?? "");
     const posterRes = await fetch(api + "/api/posters", {
       method: "POST",
       headers: {
@@ -270,6 +305,13 @@ export default function Home() {
       return;
     }
     setImageUrl(rendered.generatedImageUrl ?? "");
+    if (rendered.generatedImageUrl) {
+      setReadyPoster({
+        png: rendered.generatedImageUrl,
+        jpg: rendered.jpgUrl ?? "",
+        pdf: rendered.pdfUrl ?? "",
+      });
+    }
   }
 
   // Uses the email or phone on the form, then lists this user's posters.
@@ -344,7 +386,22 @@ export default function Home() {
     setUsage({ posters: 0, blocked: 0, flagged: 0, templates: 0, lastLog: null });
     setSaved("");
     setError("");
+    setMenuOpen(false);
   }
+
+  // The password form was removed from this menu. The old function is kept here, unused.
+  // async function changePassword(event: FormEvent<HTMLFormElement>) {
+  //   event.preventDefault();
+  //   const data = new FormData(event.currentTarget);
+  //   await fetch(api + "/api/auth/password", {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+  //     body: JSON.stringify({
+  //       currentPassword: data.get("currentPassword"),
+  //       newPassword: data.get("newPassword"),
+  //     }),
+  //   });
+  // }
 
   // Saves a hidden template. It stays off the public list.
   async function createTemplate(event: FormEvent<HTMLFormElement>) {
@@ -370,6 +427,34 @@ export default function Home() {
     }
     setSaved(body.title ?? "template created");
     await loadAdmin(token);
+  }
+
+  // Writes the design name, occasion, photo count, and two colors. Hide still uses its own button.
+  async function updateTemplate(event: FormEvent<HTMLFormElement>, id: string) {
+    event.preventDefault();
+    setError("");
+    const data = new FormData(event.currentTarget);
+    const res = await fetch(api + "/api/admin/templates/" + id, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({
+        title: data.get("title"),
+        occasionType: data.get("occasion"),
+        photoSlots: Number(data.get("photoSlots")),
+        colors: [String(data.get("color1") ?? ""), String(data.get("color2") ?? "")],
+      }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      setError(body.error ?? "template failed");
+      return false;
+    }
+    setSaved(body.title ?? "template saved");
+    await loadAdmin(token);
+    return true;
   }
 
   // Stops or allows another rebuild. The saved image stays.
@@ -498,10 +583,45 @@ export default function Home() {
       return;
     }
     setPosters((rows) => rows.map((item) => (item.id === id ? row : item)));
+    if (row.generatedImageUrl) {
+      setReadyPoster({
+        png: row.generatedImageUrl,
+        jpg: row.jpgUrl ?? "",
+        pdf: row.pdfUrl ?? "",
+      });
+    }
   }
+
+  // Fetches a stored file and saves it under the given name. Cloudinary links have no file name.
+  async function downloadFile(url: string, filename: string) {
+    setError("");
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        setError("could not download " + filename);
+        return;
+      }
+      const blob = await res.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    } catch {
+      setError("could not download " + filename);
+    }
+  }
+
+  // Reads the stored file and saves it as poster.pdf. The link itself has no .pdf name.
+  async function downloadPdf(url: string) {
+    await downloadFile(url, "poster.pdf");
+  }
+
+  // The old downloadPdf body fetched the PDF itself. downloadFile does that for PNG, JPG, and PDF.
 
   // Deletes this user's poster and drops that row. The photo and PNG stay stored.
   async function removePoster(id: string) {
+    if (!window.confirm("Delete this poster?")) return;
     setError("");
     try {
       const res = await fetch(api + "/api/posters/" + id, {
@@ -522,7 +642,7 @@ export default function Home() {
   // Saves the five text fields on this row. The image stays until Regenerate.
   async function saveText(id: string, event: MouseEvent<HTMLButtonElement>) {
     setError("");
-    const row = event.currentTarget.closest("li");
+    const row = event.currentTarget.closest(".poster-row");
     if (!row) return;
     const formData: Record<string, string> = {};
     for (const key of fields) {
@@ -545,77 +665,101 @@ export default function Home() {
     setPosters((rows) => rows.map((item) => (item.id === id ? savedRow : item)));
   }
 
-  const occasions = [...new Set(templates.map((row) => row.occasionType))];
-  const shown = occasion ? templates.filter((row) => row.occasionType === occasion) : templates;
+  // The occasion list and the filtered "shown" array went with those buttons.
+  // Rows that match the name box and the status list. Both are optional.
+  const shownPosters = posters.filter((row) => {
+    const nameOk = (row.formData?.name || "").toLowerCase().includes(nameQuery.trim().toLowerCase());
+    const statusOk = statusQuery === "" || row.status === statusQuery;
+    return nameOk && statusOk;
+  });
+  // The drawn sample used the design colors. The real poster picture does not.
+  // const guideColors = (picked?.layoutConfig?.colors ?? []).filter((color) => hexColor.test(color)).slice(0, 2);
+  // const guideBg = guideColors[0] || "#006A4E";
+  // const guideAccent = guideColors[1] || "#F42A41";
 
   // Logged-out visitors are sent to /login. The poster page stays for a stored token.
   if (!ready || !token) return null;
 
   return (
     <main>
-      <header className="topbar">
-        <button type="button" className="profile" onClick={() => setMenuOpen((open) => !open)}>
-          {role === "admin" ? "admin" : "user"}
-        </button>
-        {menuOpen ? (
-          <div className="profile-menu">
-            <button type="button" onClick={logOut}>Log out</button>
-          </div>
-        ) : null}
+      <header className="banner topbar">
+        <h1>Rise Together</h1>
+        <div className="top-account">
+        <span className="role-name">{role === "admin" ? "admin" : "user"}</span>
+        <div className="profile">
+          <button
+            type="button"
+            className="profile-icon"
+            aria-label="Account menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          />
+          {menuOpen ? (
+            <div className="profile-menu">
+              <a href="/profile">Profile</a>
+              {/* The password form used to open here. Current password, New password, and Change password are gone. */}
+              <button type="button" onClick={logOut}>Log out</button>
+            </div>
+          ) : null}
+        </div>
+        </div>
       </header>
+      <nav className="tabs" aria-label="Sections">
+        <button type="button" className={tab === "poster" ? "on" : ""} onClick={() => setTab("poster")}>
+          Make a poster
+        </button>
+        <button type="button" className={tab === "posters" ? "on" : ""} onClick={() => setTab("posters")}>
+          My posters
+        </button>
+        {role === "admin" ? (
+          <button type="button" className={tab === "admin" ? "on" : ""} onClick={() => setTab("admin")}>
+            Admin
+          </button>
+        ) : null}
+      </nav>
       {error || saved ? (
         <div className="notices">
           {error ? <p className="notice error" role="status">{error}</p> : null}
           {saved ? <p className="notice ok" role="status">{saved}</p> : null}
         </div>
       ) : null}
+      {tab === "poster" ? (
+      <>
+      {/* Empty list shows the three steps. A saved poster hides them. */}
+      {posters.length === 0 ? (
+        <ol className="first-steps">
+          <li>Choose a design.</li>
+          <li>Write the name.</li>
+          <li>Press Make poster.</li>
+        </ol>
+      ) : null}
       <section className="step">
-        <h2>{token ? "You are signed in" : "You are not signed in"}</h2>
-        {/* Register and Log in now live on /register and /login. */}
-        {token ? null : (
-          <>
-            <a className="button-link" href="/register">Register</a>
-            <a className="button-link" href="/login">Log in</a>
-          </>
-        )}
-        {/* Log out moved into the profile menu on the top right. */}
-        {token && posters.length === 0 ? <p>No posters yet</p> : null}
+        <h2>Choose a design</h2>
+        {/* Occasion buttons and the hex dropdown repeated this list. Colors are the squares. */}
+        <p>Pick one design. The squares are its colors. An admin can add more.</p>
+        <div className="design-list">
+          {templates.map((row) => {
+            const colors = (row.layoutConfig?.colors ?? []).filter((color) => hexColor.test(color)).slice(0, 2);
+            return (
+              <button
+                key={row.id}
+                type="button"
+                className={picked?.id === row.id ? "design-pick on" : "design-pick"}
+                onClick={() => setPicked(row)}
+              >
+                {colors.map((color) => (
+                  <span key={color} className="swatch" style={{ background: color }} />
+                ))}
+                {row.title}
+              </button>
+            );
+          })}
+        </div>
       </section>
       <section className="step">
-        <h2>2. Choose a design</h2>
-      <div className="choices">
-        <button type="button" onClick={() => setOccasion("")}>
-          All
-        </button>
-        {occasions.map((name) => (
-          <button key={name} type="button" onClick={() => setOccasion(name)}>
-            {name}
-          </button>
-        ))}
-      </div>
-      <ul>
-        {shown.map((row) => (
-          <li key={row.id}>
-            {(row.layoutConfig?.colors ?? [])
-              .filter((color) => hexColor.test(color))
-              .slice(0, 2)
-              .map((color) => (
-                <span
-                  key={color}
-                  style={{ display: "inline-block", width: 16, height: 16, background: color, marginRight: 4 }}
-                />
-              ))}
-            <button type="button" onClick={() => setPicked(row)}>
-              {row.title} — {row.occasionType} — {photoLabel(row.layoutConfig?.photoSlots)}
-            </button>
-          </li>
-        ))}
-      </ul>
-      </section>
-      <section className="step">
-        <h2>3. Write the poster</h2>
+        <h2>Write the poster</h2>
       {picked ? (
-        <>
+        <div className="write-layout">
         <form className="poster-form" onSubmit={onSubmit}>
           <p>{picked.title}</p>
           {token ? null : (
@@ -637,103 +781,203 @@ export default function Home() {
           {fields.map((key) => (
             <label key={key}>
               {fieldLabels[key]}
-              <input name={key} placeholder={key} />
+              <input name={key} placeholder={fieldPlaceholders[key]} />
             </label>
           ))}
+          {/* Font choice was a stretch item. The headline stays on Noto Sans Bengali. */}
           <label>
-            Font
-            <select name="font" defaultValue="nirmala">
-              <option value="nirmala">Nirmala</option>
-              <option value="noto">Noto Sans Bengali</option>
-            </select>
-          </label>
-          <label>
-            Photos
+            Photos (ছবি)
             {/* One field per leader photo. A missing slot count still shows one field. */}
             {Array.from({ length: Math.min(3, Math.max(1, picked.layoutConfig?.photoSlots ?? 1)) }, (_, index) => (
               <input key={index} name="photo" type="file" accept="image/*" />
             ))}
           </label>
-          <label>
-            Names
-            <textarea name="names" placeholder="one name per line" rows={4} />
-          </label>
-          <label>
-            CSV
-            <input name="csv" type="file" accept=".csv,text/csv" onChange={readCsv} />
-          </label>
-          <button type="button" onClick={makeDrafts}>Save names only</button>
+          {/* Extra names and a name file are one optional group. The Name field above is the poster. */}
+          <fieldset className="optional-group">
+            <legend>Optional</legend>
+            <label>
+              Names (নাম)
+              <textarea name="names" placeholder={"করিম উদ্দিন\nরহিম উদ্দিন"} rows={4} />
+            </label>
+            <label>
+              Name file
+              <input name="csv" type="file" accept=".csv,text/csv" onChange={readCsv} />
+            </label>
+            <button type="button" onClick={makeDrafts}>Save drafts</button>
+          </fieldset>
+          {/* The long line-by-line lesson is off. The requirement does not ask for that on the form. */}
           <button type="submit">Make poster</button>
-          <button type="button" onClick={loadPosters}>My posters</button>
+          {/* My posters is a tab now. This button used to open the list under the form. */}
           {/* The same saved line is the notice above. It is not repeated here. */}
-          {imageUrl ? <img src={imageUrl} alt="poster" width={300} /> : null}
+          {/* The small poster image now opens in the full-screen preview. */}
         </form>
-        {/* The list is outside the draft form so these fields are not saved as a new poster. */}
-        <ul className="poster-list">
-          {posters.map((row) => (
-            <li key={row.id}>
-              {busyId === row.id ? "rendering" : row.status}{" "}
-              {row.clean ? "" : "sample copy "}
-              {/* Three rebuilds are allowed. The first saved image does not count. */}
-              {Math.max(0, 3 - (row.regenerateCount ?? 0))} rebuilds left{" "}
-              <button type="button" onClick={() => regenerate(row.id)}>
-                Regenerate
-              </button>{" "}
-              <button type="button" onClick={() => removePoster(row.id)}>
-                Delete
-              </button>{" "}
-              <button type="button" onClick={() => preview(row.id)}>
-                Preview
-              </button>
-              {row.generatedImageUrl ? (
-                <>
-                  {" "}
-                  <a href={row.generatedImageUrl}>open</a>
-                </>
-              ) : null}
-              {row.jpgUrl ? (
-                <>
-                  {" "}
-                  <a href={row.jpgUrl}>jpg</a>
-                </>
-              ) : null}
-              {row.pdfUrl ? (
-                <>
-                  {" "}
-                  <a href={row.pdfUrl}>pdf</a>
-                </>
-              ) : null}
-              {fields.map((key) => (
-                <label key={key}>
-                  {fieldLabels[key]}
-                  <input name={key} placeholder={key} defaultValue={String(row.formData?.[key] ?? "")} />
-                </label>
-              ))}
-              <button type="button" onClick={(event) => saveText(row.id, event)}>
-                Save text
-              </button>
-            </li>
-          ))}
-        </ul>
+        {/* The poster list moved to the My posters tab. */}
         {/* Admin now sits under the steps, so a design does not have to be picked first. */}
-        </>
+        {/* A drawing of the real poster. The words name the form fields. Typing does not change them. */}
+        <aside className="poster-guide" aria-label="Where each field is printed">
+          {/* The drawn sample is off. This picture is a real poster, large enough to read. */}
+          <div className="guide-sheet">
+            <img src="/sample-poster.png" alt="Sample poster: photos, headline, নমুনা, then the name band" />
+            {/* Notes on the picture covered the name. They sit to the right again. */}
+            {/* The list is inside the picture so each arrow uses the picture's own height. */}
+            <ul className="guide-labels">
+              <li className="at-photos">Photos (ছবি)</li>
+              <li className="at-headline">Headline (শিরোনাম)</li>
+              <li className="at-mark">Watermark (নমুনা)</li>
+              <li className="at-name">Name (নাম)</li>
+              <li className="at-role">Designation (পদবি)</li>
+              <li className="at-place">Party · District (দল · জেলা)</li>
+            </ul>
+          </div>
+          {/* The old drawing stayed here: flag, cutouts, portrait, headline, নমুনা, and the name band. */}
+        </aside>
+        </div>
       ) : (
         <p>Choose a design first.</p>
       )}
       </section>
-      {/* The admin markup lives in AdminPanel.tsx. It shows as soon as this account is an admin. */}
-      {role === "admin" ? (
+      </>
+      ) : null}
+      {tab === "posters" ? (
+        <section className="step poster-directory">
+          <h2>My posters</h2>
+          {/* "Yes means the poster still shows নমুনা." The line below names the Watermark column. */}
+          <p>Watermark: Yes means নমুনা is still on the picture. No means that word is off.</p>
+          {/* Filters the rows already loaded. It does not call the server again. */}
+          <div className="poster-tools">
+            <label className="poster-search">
+              Search by name
+              <input
+                value={nameQuery}
+                onChange={(event) => setNameQuery(event.target.value)}
+                placeholder="Type a name"
+              />
+            </label>
+            <label className="poster-search">
+              Status
+              <select value={statusQuery} onChange={(event) => setStatusQuery(event.target.value)}>
+                <option value="">All</option>
+                <option value="completed">Ready</option>
+                <option value="draft">Draft</option>
+                <option value="failed">Failed</option>
+                <option value="generating">Building</option>
+              </select>
+            </label>
+          </div>
+          <p className="poster-count">{shownPosters.length} shown</p>
+          {posters.length === 0 ? <p>No posters yet.</p> : shownPosters.length === 0 ? (
+            /* "No name matches." became this line, because the status list can hide rows too. */
+            <p>Nothing matches.</p>
+          ) : (
+            <div className="poster-table-wrap">
+              <table className="poster-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Watermark</th>
+                    <th>Rebuilds left</th>
+                    <th>Files</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shownPosters.map((row) => {
+                    const rebuildsLeft = Math.max(0, 3 - (row.regenerateCount ?? 0));
+                    return [
+                      <tr key={row.id} className="poster-row">
+                        <td>{row.formData?.name || "No name"}</td>
+                        <td>{statusWord(row.status, busyId === row.id)}</td>
+                        <td>{row.clean ? "No" : "Yes"}</td>
+                        <td>{rebuildsLeft}</td>
+                        <td>
+                          <div className="poster-actions">
+                            {row.generatedImageUrl ? (
+                              <a className="view-picture" href={row.generatedImageUrl} target="_blank" rel="noreferrer">
+                                View picture
+                              </a>
+                            ) : null}
+                            {row.jpgUrl ? (
+                              <a className="file-button" href={row.jpgUrl}>Download JPG</a>
+                            ) : null}
+                            {row.pdfUrl ? (
+                              <button type="button" onClick={() => downloadPdf(row.pdfUrl ?? "")}>Download PDF</button>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="poster-actions">
+                            <button type="button" onClick={() => setEditingId(editingId === row.id ? "" : row.id)}>
+                              Change words
+                            </button>
+                            <button
+                              type="button"
+                              disabled={rebuildsLeft === 0 || busyId === row.id}
+                              onClick={() => regenerate(row.id)}
+                            >
+                              Rebuild picture
+                            </button>
+                            {/* The old Preview button opened the HTML page. It stays only when there is no picture. */}
+                            {row.generatedImageUrl ? null : (
+                              <button type="button" onClick={() => preview(row.id)}>See layout</button>
+                            )}
+                            <button type="button" onClick={() => removePoster(row.id)}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>,
+                      editingId === row.id ? (
+                        <tr key={row.id + "-words"} className="poster-row">
+                          <td colSpan={6}>
+                            <p>The picture changes only after Rebuild picture.</p>
+                            <div className="word-edit">
+                              {fields.map((key) => (
+                                <label key={key}>
+                                  {fieldLabels[key]}
+                                  <input name={key} placeholder={key} defaultValue={String(row.formData?.[key] ?? "")} />
+                                </label>
+                              ))}
+                              <button type="button" onClick={(event) => saveText(row.id, event)}>Save words</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null,
+                    ];
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
+      {/* Admin is its own tab, so it is not stacked under the poster form. */}
+      {role === "admin" && tab === "admin" ? (
         <AdminPanel
           usage={usage}
           adminTemplates={adminTemplates}
           review={review}
           createTemplate={createTemplate}
+          updateTemplate={updateTemplate}
           setTemplateActive={setTemplateActive}
           deleteTemplate={deleteTemplate}
           setBlocked={setBlocked}
           setFlagged={setFlagged}
           setClean={setClean}
         />
+      ) : null}
+      {readyPoster ? (
+        <div className="poster-preview" role="dialog" aria-modal="true" aria-label="Finished poster">
+          <div className="poster-preview-bar">
+            <button type="button" onClick={() => downloadFile(readyPoster.png, "poster.png")}>Download PNG</button>
+            {readyPoster.jpg ? (
+              <button type="button" onClick={() => downloadFile(readyPoster.jpg, "poster.jpg")}>Download JPG</button>
+            ) : null}
+            {readyPoster.pdf ? (
+              <button type="button" onClick={() => downloadPdf(readyPoster.pdf)}>Download PDF</button>
+            ) : null}
+            <button type="button" className="preview-close" onClick={() => setReadyPoster(null)} aria-label="Close">×</button>
+          </div>
+          <img src={readyPoster.png} alt="Finished poster" />
+        </div>
       ) : null}
     </main>
   );
